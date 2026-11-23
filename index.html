@@ -1,0 +1,1215 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>우연의 고리</title>
+  <!-- 깔끔한 한글 서체 로드 (Noto Sans KR & Gowun Batang) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Noto+Sans+KR:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-color: #ffffff;
+      --teal-primary: #167a75;
+      --teal-light: #2b938d;
+      --teal-faint: rgba(22, 122, 117, 0.12);
+      --text-dark: #1d2220;
+      --text-muted: #687573;
+      --card-shadow: 0 12px 36px rgba(22, 122, 117, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-dark);
+      font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* 상단 헤더 ("우연의 고리") */
+    header {
+      width: 100%;
+      padding: 40px 20px 12px;
+      text-align: center;
+      position: relative;
+      z-index: 10;
+    }
+
+    header h1 {
+      font-size: clamp(1.6rem, 3vw, 2.1rem);
+      font-weight: 400;
+      letter-spacing: 0.16em;
+      color: var(--text-dark);
+      display: inline-block;
+    }
+
+    /* 메인 스테이지: 궤도 + 말풍선 글 카드 */
+    main {
+      flex: 1;
+      width: 100%;
+      max-width: 1240px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px 24px 64px;
+      position: relative;
+      transition: all 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .stage-wrapper {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      gap: 0px;
+      transition: gap 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .stage-wrapper.has-active-post {
+      gap: 28px;
+    }
+
+    /* 동심원 궤도 SVG 컨테이너 */
+    .orbit-container {
+      position: relative;
+      width: min(86vw, 650px);
+      height: min(86vw, 650px);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1), width 0.4s ease, height 0.4s ease;
+    }
+
+    svg#orbitSvg {
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+      user-select: none;
+    }
+
+    /* 동심원 고리 스타일 */
+    .ring-circle {
+      fill: none;
+      stroke: var(--teal-primary);
+      stroke-width: 1.05;
+      opacity: 0.78;
+      transition: stroke-width 0.3s ease, opacity 0.3s ease;
+    }
+
+    .ring-circle.highlighted {
+      stroke-width: 2;
+      opacity: 1;
+    }
+
+    /* 행성(별 원형 마커) 그룹 */
+    .planet-node {
+      cursor: pointer;
+      transition: filter 0.25s ease;
+    }
+
+    .planet-bg {
+      fill: var(--teal-primary);
+      transition: r 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), fill 0.25s ease;
+    }
+
+    .planet-pulse {
+      fill: none;
+      stroke: var(--teal-primary);
+      stroke-width: 1.2;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .planet-star {
+      fill: #ffffff;
+      pointer-events: none;
+    }
+
+    .planet-node:hover .planet-bg {
+      fill: var(--teal-light);
+    }
+
+    .planet-node.active .planet-bg {
+      fill: #0f5c58;
+    }
+
+    .planet-node.active .planet-pulse {
+      opacity: 0.55;
+      animation: pulseRing 2.2s infinite ease-out;
+    }
+
+    @keyframes pulseRing {
+      0% {
+        r: 12;
+        opacity: 0.65;
+      }
+      100% {
+        r: 23;
+        opacity: 0;
+      }
+    }
+
+    /* 호버 시 나타나는 작은 제목 툴팁 */
+    .planet-tooltip {
+      position: fixed;
+      pointer-events: none;
+      background: rgba(255, 255, 255, 0.96);
+      border: 1px solid var(--teal-primary);
+      color: var(--text-dark);
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: 0.82rem;
+      font-weight: 500;
+      white-space: nowrap;
+      box-shadow: 0 4px 14px rgba(22, 122, 117, 0.12);
+      opacity: 0;
+      transform: translate(-50%, -135%);
+      transition: opacity 0.18s ease;
+      z-index: 50;
+    }
+
+    .planet-tooltip.visible {
+      opacity: 1;
+    }
+
+    /* 두 번째 스케치의 말풍선 형태 글 읽기 카드 */
+    .reader-card {
+      position: relative;
+      width: 0;
+      max-width: 400px;
+      opacity: 0;
+      pointer-events: none;
+      background: #ffffff;
+      border: 1.5px solid var(--teal-primary);
+      border-radius: 14px;
+      box-shadow: var(--card-shadow);
+      transform: translateX(16px);
+      transition:
+        width 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+        opacity 0.35s ease,
+        transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+      flex-shrink: 0;
+    }
+
+    .reader-card.open {
+      width: 380px;
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateX(0);
+    }
+
+    .reader-inner {
+      padding: 32px 28px 34px;
+      min-height: 430px;
+      max-height: 70vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* 왼쪽 말풍선 꼬리 (두 번째 사진 참고) */
+    .bubble-pointer {
+      position: absolute;
+      left: -14px;
+      top: 50%;
+      width: 14px;
+      height: 24px;
+      transform: translateY(-50%);
+      pointer-events: none;
+      transition: top 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    /* 우측 상단 청록색 원형 닫기(×) 버튼 */
+    .close-btn {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background-color: var(--teal-primary);
+      border: none;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background-color 0.2s ease, transform 0.2s ease;
+      z-index: 5;
+    }
+
+    .close-btn:hover {
+      background-color: #0f5c58;
+      transform: scale(1.08);
+    }
+
+    .close-btn svg {
+      width: 13px;
+      height: 13px;
+      stroke: #ffffff;
+      stroke-width: 2.3;
+    }
+
+    .post-meta {
+      font-size: 0.78rem;
+      color: var(--teal-primary);
+      letter-spacing: 0.04em;
+      margin-bottom: 8px;
+      font-weight: 500;
+    }
+
+    .post-title {
+      font-size: 1.32rem;
+      font-weight: 600;
+      color: var(--text-dark);
+      line-height: 1.45;
+      padding-right: 28px;
+      margin-bottom: 22px;
+      word-break: keep-all;
+    }
+
+    .post-divider {
+      width: 28px;
+      height: 1.5px;
+      background-color: var(--teal-primary);
+      opacity: 0.45;
+      margin-bottom: 22px;
+      flex-shrink: 0;
+    }
+
+    .post-body {
+      font-family: 'Gowun Batang', 'Noto Sans KR', serif;
+      font-size: 1.01rem;
+      line-height: 1.95;
+      color: #2b3230;
+      overflow-y: auto;
+      padding-right: 6px;
+      white-space: pre-line;
+      word-break: keep-all;
+    }
+
+    /* 스크롤바 미니멀 스타일 */
+    .post-body::-webkit-scrollbar {
+      width: 4px;
+    }
+    .post-body::-webkit-scrollbar-thumb {
+      background: rgba(22, 122, 117, 0.25);
+      border-radius: 4px;
+    }
+
+    /* 하단 우측 은은한 관리 버튼 & 안내 문구 */
+    .subtle-hint {
+      position: fixed;
+      bottom: 20px;
+      left: 24px;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      opacity: 0.75;
+      pointer-events: none;
+    }
+
+    .manage-trigger {
+      position: fixed;
+      bottom: 18px;
+      right: 22px;
+      background: #ffffff;
+      border: 1px solid rgba(22, 122, 117, 0.35);
+      color: var(--teal-primary);
+      font-size: 0.8rem;
+      padding: 8px 14px;
+      border-radius: 999px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+      z-index: 40;
+    }
+
+    .manage-trigger:hover {
+      background: var(--teal-primary);
+      color: #ffffff;
+      border-color: var(--teal-primary);
+    }
+
+    /* 글 추가/관리 모달 */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(20, 30, 29, 0.32);
+      backdrop-filter: blur(2px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 100;
+    }
+
+    .modal-backdrop.show {
+      display: flex;
+    }
+
+    .modal-panel {
+      background: #ffffff;
+      border: 1.5px solid var(--teal-primary);
+      border-radius: 16px;
+      width: 100%;
+      max-width: 560px;
+      max-height: 86vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.14);
+    }
+
+    .modal-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid rgba(22, 122, 117, 0.16);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .modal-header h2 {
+      font-size: 1.08rem;
+      font-weight: 600;
+      color: var(--teal-primary);
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 1.35rem;
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    .modal-body {
+      padding: 20px 24px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-group label {
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: var(--text-dark);
+    }
+
+    .form-group input,
+    .form-group textarea {
+      width: 100%;
+      border: 1px solid rgba(22, 122, 117, 0.35);
+      border-radius: 10px;
+      padding: 10px 13px;
+      font-family: inherit;
+      font-size: 0.92rem;
+      color: var(--text-dark);
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .form-group input:focus,
+    .form-group textarea:focus {
+      border-color: var(--teal-primary);
+    }
+
+    .form-group textarea {
+      min-height: 110px;
+      resize: vertical;
+      line-height: 1.65;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+
+    .btn-primary {
+      background: var(--teal-primary);
+      color: #ffffff;
+      border: none;
+      padding: 9px 18px;
+      border-radius: 999px;
+      font-size: 0.86rem;
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    .btn-primary:hover {
+      background: #0f5c58;
+    }
+
+    .btn-secondary {
+      background: #f3f7f6;
+      color: var(--text-dark);
+      border: 1px solid rgba(22, 122, 117, 0.25);
+      padding: 9px 14px;
+      border-radius: 999px;
+      font-size: 0.82rem;
+      cursor: pointer;
+    }
+
+    .saved-list {
+      border-top: 1px solid rgba(22, 122, 117, 0.16);
+      padding-top: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .saved-list-title {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    .saved-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 9px 12px;
+      border-radius: 10px;
+      background: #f8fbfb;
+      border: 1px solid rgba(22, 122, 117, 0.14);
+      gap: 10px;
+    }
+
+    .saved-item-info {
+      font-size: 0.88rem;
+      color: var(--text-dark);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .saved-item-actions {
+      display: flex;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .mini-btn {
+      font-size: 0.75rem;
+      padding: 4px 9px;
+      border-radius: 6px;
+      border: 1px solid rgba(22, 122, 117, 0.3);
+      background: #ffffff;
+      color: var(--teal-primary);
+      cursor: pointer;
+    }
+
+    .mini-btn.del {
+      border-color: rgba(190, 60, 60, 0.35);
+      color: #b83b3b;
+    }
+
+    /* 반응형 (태블릿 및 모바일) */
+    @media (max-width: 960px) {
+      .stage-wrapper,
+      .stage-wrapper.has-active-post {
+        flex-direction: column;
+        gap: 24px;
+      }
+
+      .orbit-container {
+        width: min(90vw, 480px);
+        height: min(90vw, 480px);
+      }
+
+      .reader-card.open {
+        width: min(92vw, 460px);
+      }
+
+      .reader-inner {
+        min-height: 300px;
+        max-height: 55vh;
+      }
+
+      /* 모바일에서는 말풍선 꼬리를 위쪽 중앙으로 전환 */
+      .bubble-pointer {
+        left: 50% !important;
+        top: -19px !important;
+        transform: translateX(-50%) rotate(90deg);
+      }
+
+      .subtle-hint {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 상단 타이틀 -->
+  <header>
+    <h1>우연의 고리</h1>
+  </header>
+
+  <!-- 메인 스테이지: 동심원 궤도 + 말풍선 글 카드 -->
+  <main id="mainStage">
+    <div class="stage-wrapper" id="stageWrapper">
+      <!-- 동심원 & 행성 궤도 영역 -->
+      <div class="orbit-container" id="orbitContainer">
+        <svg id="orbitSvg" viewBox="0 0 640 640" aria-label="우연의 고리 궤도">
+          <g id="ringsLayer"></g>
+          <g id="planetsLayer"></g>
+        </svg>
+      </div>
+
+      <!-- 행성 클릭 시 열리는 글 카드 (두 번째 스케치 레이아웃) -->
+      <aside class="reader-card" id="readerCard" aria-live="polite">
+        <!-- 왼쪽 말풍선 삼각형 꼬리 -->
+        <svg class="bubble-pointer" id="bubblePointer" viewBox="0 0 14 24">
+          <polygon points="14,0 1,12 14,24" fill="#ffffff" />
+          <polyline points="14,1 1.5,12 14,23" fill="none" stroke="#167a75" stroke-width="1.5" stroke-linejoin="round" />
+        </svg>
+
+        <!-- 우상단 원형 닫기 버튼 -->
+        <button class="close-btn" id="closeCardBtn" title="글 닫기" aria-label="글 닫기">
+          <svg viewBox="0 0 16 16">
+            <line x1="3" y1="3" x2="13" y2="13" />
+            <line x1="13" y1="3" x2="3" y2="13" />
+          </svg>
+        </button>
+
+        <div class="reader-inner">
+          <div class="post-meta" id="postMeta">우연의 조각 #01</div>
+          <h2 class="post-title" id="postTitle">글 제목</h2>
+          <div class="post-divider"></div>
+          <div class="post-body" id="postBody">글 내용이 이곳에 나타납니다.</div>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <!-- 행성 호버 툴팁 -->
+  <div class="planet-tooltip" id="planetTooltip"></div>
+
+  <!-- 좌측 하단 은은한 가이드 -->
+  <div class="subtle-hint">궤도 위 별을 눌러 우연히 쓰인 글을 열어보세요</div>
+
+  <!-- 우측 하단 글 추가/관리 버튼 -->
+  <button class="manage-trigger" id="openManageBtn" title="내 글 추가 및 편집">
+    <span>+ 글 모음 관리</span>
+  </button>
+
+  <!-- 글 추가 및 관리 모달 -->
+  <div class="modal-backdrop" id="manageModal">
+    <div class="modal-panel">
+      <div class="modal-header">
+        <h2>우연의 고리 — 내 글 모음 관리</h2>
+        <button class="modal-close" id="closeManageBtn" aria-label="창 닫기">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="writingForm">
+          <input type="hidden" id="editId" value="" />
+          <div class="form-group">
+            <label for="inputTitle">글 제목</label>
+            <input type="text" id="inputTitle" placeholder="예: 비 오던 화요일의 메모" required />
+          </div>
+          <div class="form-group" style="margin-top: 12px;">
+            <label for="inputDate">작성일 또는 짧은 꼬리말 (선택)</label>
+            <input type="text" id="inputDate" placeholder="예: 2026. 11. 22 · 밤 산책길" />
+          </div>
+          <div class="form-group" style="margin-top: 12px;">
+            <label for="inputBody">글 내용</label>
+            <textarea id="inputBody" placeholder="우연히 스쳐 지나간 생각이나 기록을 자유롭게 적어주세요..." required></textarea>
+          </div>
+          <div class="btn-row" style="margin-top: 14px;">
+            <button type="button" class="btn-secondary" id="resetDefaultBtn" title="기본 예시 글로 되돌리기">초기화</button>
+            <button type="button" class="btn-secondary" id="cancelEditBtn" style="display:none;">취소</button>
+            <button type="submit" class="btn-primary" id="submitWritingBtn">고리에 별 추가하기</button>
+          </div>
+        </form>
+
+        <div class="saved-list">
+          <div class="saved-list-title">현재 궤도를 돌고 있는 글 (<span id="countBadge">0</span>편)</div>
+          <div id="savedItemsContainer"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /**
+     * ============================================================================
+     * [사용자 글 데이터 영역]
+     * 코드에서 직접 글을 수정하거나 추가하고 싶다면 아래 defaultWritings 배열의
+     * title(제목), meta(날짜/소제목), body(본문) 내용을 자유롭게 바꾸시면 됩니다.
+     * ============================================================================
+     */
+    const defaultWritings = [
+      {
+        id: 'w-1',
+        title: '우산 없이 나선 저녁의 빗소리',
+        meta: '첫 번째 고리 · 비 온 뒤',
+        body: `하늘이 조금 흐리다는 걸 알면서도 그냥 현관문을 나섰다. 편의점까지 딱 오 분 거리였으니까 괜찮을 거라 생각했다.
+
+그런데 횡단보도 신호가 바뀌기를 기다리는 짧은 틈에 빗방울이 하나둘 떨어지기 시작했다. 비를 피하려고 처마 밑에 섰는데, 이상하게도 조급한 마음이 들지 않았다.
+
+아스팔트 위로 빗방울이 부딪히며 내는 낮고 규칙적인 소리. 늘 바쁘게 걷느라 놓쳤던 도시의 숨소리가 그제야 귓가에 닿았다. 우연히 비를 만난 덕분에, 나는 오늘 하루 중 가장 고요한 십 분을 선물 받았다.`
+      },
+      {
+        id: 'w-2',
+        title: '오래된 책갈피에서 나온 영수증',
+        meta: '두 번째 고리 · 헌책방의 기억',
+        body: `몇 년 만에 다시 펼친 시집 중간에서 바랜 감열지 영수증 한 장이 팔랑 떨어졌다. 잉크는 거의 날아가 희미했지만, 날짜와 아메리카노 한 잔이라는 글자만큼은 선명했다.
+
+그날 내가 왜 그 카페에 혼자 앉아 있었는지, 어떤 문장에 밑줄을 긋고 싶었는지가 순식간에 되살아났다. 기억은 늘 대단한 사진첩이 아니라 이런 사소한 종이 조각 속에 숨어 있다가, 전혀 예상치 못한 순간에 말을 걸어온다.`
+      },
+      {
+        id: 'w-3',
+        title: '지하철 창문에 비친 노을의 각도',
+        meta: '세 번째 고리 · 퇴근길 6호선',
+        body: `한강 철교를 건너는 단 1분 남짓한 시간 동안, 열차 안의 모든 사람들이 고개를 들어 창밖을 바라보았다. 이어폰을 꽂고 각자의 화면만 내려다보던 풍경이 거짓말처럼 멈춘 순간이었다.
+
+붉은빛이 강물 위에서 부서지며 객차 내부까지 따뜻하게 물들였다. 누군가와 한마디 말도 나누지 않았지만, 같은 노을을 동시에 바라봤다는 사실만으로 왠지 모를 연대감이 피어올랐다.`
+      },
+      {
+        id: 'w-4',
+        title: '나이테와 레코드판의 닮은 점',
+        meta: '네 번째 고리 · 둥근 시간들',
+        body: `나무의 나이테도, 턴테이블 위에서 돌아가는 바이닐 레코드도 모두 중심에서 바깥으로 퍼져 나가는 동심원을 닮았다.
+
+한 바퀴를 다 돌고 나면 다시 제자리로 돌아온 것 같지만, 사실은 미세하게 다른 궤도 위에 서 있다. 내가 우연히 써 내려간 짧은 문장들도 언젠가 이렇게 둥글게 모여 나만의 나이테가 되어줄까.`
+      },
+      {
+        id: 'w-5',
+        title: '새벽 두 시에 깎은 연필',
+        meta: '다섯 번째 고리 · 사각거림',
+        body: `잠이 오지 않아 책상 서랍 깊숙이 굴러다니던 나무 연필을 꺼내 칼로 천천히 깎았다. 흑연 가루와 삼나무 향기가 책상 위로 소복이 내려앉았다.
+
+키보드를 두드릴 때는 결코 느껴지지 않는 손끝의 저항감. 뾰족해진 연필심으로 빈 노트에 첫 글자를 눌러 적을 때, 비로소 내 생각이 내 것이 되는 기분이 든다.`
+      },
+      {
+        id: 'w-6',
+        title: '이름 모를 골목의 고양이와 눈이 마주쳤을 때',
+        meta: '여섯 번째 고리 · 산책자의 시선',
+        body: `익숙한 큰길을 버리고 처음 보는 좁은 골목으로 접어들었다. 담벼락 위에서 식빵을 굽던 치즈 태비 고양이가 나를 빤히 내려다보았다.
+
+도망가지도, 다가오지도 않은 채 천천히 눈을 한 번 깜빡여 주던 그 느긋한 인사. 세상의 모든 속도가 조금씩 느려져도 괜찮다고 말해주는 것 같았다.`
+      },
+      {
+        id: 'w-7',
+        title: '식어버린 차가 더 향기로울 때',
+        meta: '일곱 번째 고리 · 오후 네 시',
+        body: `뜨거운 물을 붓고 잠깐 다른 일을 하느라 찻잔을 잊고 있었다. 뒤늦게 마신 찻물은 이미 미지근하게 식어 있었지만, 오히려 찻잎 본연의 단맛과 풀 내음이 훨씬 선명하게 느껴졌다.
+
+무언가를 가장 뜨거울 때만 놓치지 않으려 애썼던 날들을 떠올린다. 시간이 조금 지난 뒤에야 비로소 맛볼 수 있는 온기도 분명 존재한다.`
+      },
+      {
+        id: 'w-8',
+        title: '목적지 없이 탄 마을버스',
+        meta: '여덟 번째 고리 · 창가 자리',
+        body: `종점까지 갔다가 다시 돌아오는 마을버스 맨 뒷자리에 앉아 창밖을 구경했다. 내가 한 번도 내려보지 않은 정류장 이름들이 하나씩 스쳐 지나갔다.
+
+그 동네의 슈퍼마켓, 세탁소, 작은 놀이터. 내 삶과는 전혀 겹치지 않을 것 같던 풍경들이 사실은 집에서 버스 한 번이면 닿는 거리에 있었다는 게 새삼 신기했다.`
+      },
+      {
+        id: 'w-9',
+        title: '우연이라는 단어가 가진 온기',
+        meta: '아홉 번째 고리 · 기록의 이유',
+        body: `계획해서 쓴 글보다 아무 생각 없이 메모장을 열어 단숨에 적어 내려간 글이 나중에 더 오래 마음에 남는다.
+
+우연은 준비되지 않은 마음에 불쑥 찾아오는 손님과 같아서, 그 순간 붙잡아 두지 않으면 바람처럼 흩어져 버린다. 그래서 나는 오늘도 작은 별 하나를 궤도 위에 띄워 둔다.`
+      },
+      {
+        id: 'w-10',
+        title: '밤하늘의 별과 지상의 가로등 사이',
+        meta: '열 번째 고리 · 귀갓길',
+        body: `고개를 들면 아주 멀리서 수만 년 전의 빛을 보내오는 별이 있고, 고개를 숙이면 내 발밑을 비추는 낮은 가로등이 있다.
+
+거창한 깨달음이 아니어도 좋다. 오늘 하루 내가 지나온 작은 점들이 이어져 하나의 고리를 이룬다면, 그걸로 충분히 근사한 궤도가 될 테니까.`
+      }
+    ];
+
+    const STORAGE_KEY = 'rings_of_coincidence_writings_v1';
+
+    // 로컬스토리지에서 글 불러오기 (없으면 기본 예시 글 사용)
+    function loadWritings() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+      } catch (e) {
+        console.warn('저장된 글을 불러오는 중 오류가 발생했습니다.', e);
+      }
+      return [...defaultWritings];
+    }
+
+    function saveWritings(list) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+      } catch (e) {
+        console.warn('저장 실패:', e);
+      }
+    }
+
+    let writings = loadWritings();
+
+    // SVG 및 DOM 요소 참조
+    const SVG_SIZE = 640;
+    const CENTER = SVG_SIZE / 2;
+    const ringsLayer = document.getElementById('ringsLayer');
+    const planetsLayer = document.getElementById('planetsLayer');
+    const orbitContainer = document.getElementById('orbitContainer');
+    const stageWrapper = document.getElementById('stageWrapper');
+    const readerCard = document.getElementById('readerCard');
+    const bubblePointer = document.getElementById('bubblePointer');
+    const postMetaEl = document.getElementById('postMeta');
+    const postTitleEl = document.getElementById('postTitle');
+    const postBodyEl = document.getElementById('postBody');
+    const closeCardBtn = document.getElementById('closeCardBtn');
+    const planetTooltip = document.getElementById('planetTooltip');
+
+    // 동심원 반지름 설계 (첫 번째 스케치처럼 안쪽 작은 빈 원 + 불규칙한 간격의 나이테/레코드 궤도들)
+    const baseRingRadii = [
+      34,   // 가장 안쪽 작은 중심 원 (행성 없음)
+      118,
+      138,
+      166,
+      192,
+      214,
+      224,  // 촘촘하게 겹치는 레코드 홈 느낌
+      233,
+      258,
+      292   // 가장 바깥쪽 큰 원
+    ];
+
+    let orbitEntities = [];
+    let selectedWritingId = null;
+    let hoveredWritingId = null;
+    let lastTimestamp = null;
+
+    // 5각 별 SVG path 생성 헬퍼
+    function createStarPoints(cx, cy, outerR, innerR) {
+      const pts = [];
+      for (let i = 0; i < 10; i++) {
+        const angle = (Math.PI / 5) * i - Math.PI / 2;
+        const r = i % 2 === 0 ? outerR : innerR;
+        const x = cx + r * Math.cos(angle);
+        const y = cy + r * Math.sin(angle);
+        pts.push(`${x.toFixed(2)},${y.toFixed(2)}`);
+      }
+      return pts.join(' ');
+    }
+
+    // 궤도 고리와 행성 노드 렌더링
+    function buildOrbitScene() {
+      ringsLayer.innerHTML = '';
+      planetsLayer.innerHTML = '';
+      orbitEntities = [];
+
+      // 글 개수가 많을 경우 바깥쪽 궤도를 유연하게 확장
+      const ringRadii = [...baseRingRadii];
+      const usableRadii = ringRadii.slice(1); // 중심 작은 원(34) 제외하고 행성 배치
+
+      // 1) 동심원 고리 그리기
+      ringRadii.forEach((radius, idx) => {
+        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        circle.setAttribute('cx', CENTER);
+        circle.setAttribute('cy', CENTER);
+        circle.setAttribute('r', radius);
+        circle.setAttribute('class', 'ring-circle');
+        circle.dataset.ringIndex = idx;
+        ringsLayer.appendChild(circle);
+      });
+
+      // 2) 각 글에 대응하는 행성(별 마커) 생성
+      writings.forEach((item, idx) => {
+        const radius = usableRadii[idx % usableRadii.length];
+        // 고르게 퍼지도록 초기 각도 설정 (라디안)
+        const initialAngle = ((idx * 137.5) % 360) * (Math.PI / 180);
+        // 모두 같은 방향(시계 방향: +)으로 천천히 공전, 궤도마다 미세하게 다른 속도
+        const speed = 0.085 + (idx % 5) * 0.016;
+
+        const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        g.setAttribute('class', 'planet-node');
+        g.dataset.id = item.id;
+
+        const pulse = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        pulse.setAttribute('class', 'planet-pulse');
+        pulse.setAttribute('cx', 0);
+        pulse.setAttribute('cy', 0);
+        pulse.setAttribute('r', 12);
+
+        const bg = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        bg.setAttribute('class', 'planet-bg');
+        bg.setAttribute('cx', 0);
+        bg.setAttribute('cy', 0);
+        bg.setAttribute('r', 11.5);
+
+        const star = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+        star.setAttribute('class', 'planet-star');
+        star.setAttribute('points', createStarPoints(0, 0, 6.4, 2.7));
+
+        g.appendChild(pulse);
+        g.appendChild(bg);
+        g.appendChild(star);
+        planetsLayer.appendChild(g);
+
+        const entity = {
+          id: item.id,
+          writing: item,
+          radius,
+          angle: initialAngle,
+          speed,
+          el: g,
+          bgEl: bg
+        };
+
+        // 마우스 호버 이벤트
+        g.addEventListener('mouseenter', (e) => {
+          hoveredWritingId = item.id;
+          bg.setAttribute('r', 14);
+          highlightRingByRadius(radius, true);
+          showTooltip(item.title, e);
+        });
+
+        g.addEventListener('mousemove', (e) => {
+          updateTooltipPos(e);
+        });
+
+        g.addEventListener('mouseleave', () => {
+          hoveredWritingId = null;
+          if (selectedWritingId !== item.id) {
+            bg.setAttribute('r', 11.5);
+          }
+          highlightRingByRadius(radius, false);
+          hideTooltip();
+        });
+
+        // 클릭 / 터치 이벤트: 해당 글 열기
+        g.addEventListener('click', (e) => {
+          e.stopPropagation();
+          selectWriting(item.id);
+        });
+
+        orbitEntities.push(entity);
+      });
+
+      updatePlanetPositions();
+    }
+
+    function highlightRingByRadius(radius, active) {
+      const circles = ringsLayer.querySelectorAll('.ring-circle');
+      circles.forEach((c) => {
+        if (Number(c.getAttribute('r')) === radius) {
+          c.classList.toggle('highlighted', active);
+        }
+      });
+    }
+
+    function showTooltip(text, event) {
+      planetTooltip.textContent = text;
+      planetTooltip.classList.add('visible');
+      updateTooltipPos(event);
+    }
+
+    function updateTooltipPos(event) {
+      planetTooltip.style.left = `${event.clientX}px`;
+      planetTooltip.style.top = `${event.clientY - 8}px`;
+    }
+
+    function hideTooltip() {
+      planetTooltip.classList.remove('visible');
+    }
+
+    // 매 프레임 행성 좌표 갱신
+    function updatePlanetPositions() {
+      orbitEntities.forEach((ent) => {
+        const x = CENTER + ent.radius * Math.cos(ent.angle);
+        const y = CENTER + ent.radius * Math.sin(ent.angle);
+        ent.x = x;
+        ent.y = y;
+        ent.el.setAttribute('transform', `translate(${x.toFixed(2)}, ${y.toFixed(2)})`);
+      });
+
+      // 선택된 글이 열려있다면 말풍선 삼각형 꼬리 높이를 선택된 행성 Y 위치에 부드럽게 맞춤
+      if (selectedWritingId && window.innerWidth > 960) {
+        alignPointerToSelectedPlanet();
+      }
+    }
+
+    // 말풍선 꼬리(화살표)를 선택된 행성의 높이에 맞추기
+    function alignPointerToSelectedPlanet() {
+      const selectedEnt = orbitEntities.find((e) => e.id === selectedWritingId);
+      if (!selectedEnt) return;
+
+      const svgRect = document.getElementById('orbitSvg').getBoundingClientRect();
+      const cardRect = readerCard.getBoundingClientRect();
+      if (!cardRect.height) return;
+
+      // SVG 내 Y좌표를 화면 픽셀 좌표로 변환
+      const planetScreenY = svgRect.top + (selectedEnt.y / SVG_SIZE) * svgRect.height;
+      let relativeY = planetScreenY - cardRect.top;
+
+      // 카드 모서리를 벗어나지 않도록 안전 범위 제한
+      const minY = 36;
+      const maxY = cardRect.height - 36;
+      relativeY = Math.max(minY, Math.min(maxY, relativeY));
+
+      bubblePointer.style.top = `${relativeY}px`;
+    }
+
+    // 연속 공전 애니메이션 루프 (requestAnimationFrame)
+    function animateOrbits(timestamp) {
+      if (!lastTimestamp) lastTimestamp = timestamp;
+      const dt = (timestamp - lastTimestamp) / 1000;
+      lastTimestamp = timestamp;
+
+      // 글을 읽고 있을 때는 공전을 아주 느리게 유영시키거나 정지, 호버 시에도 부드럽게 감속
+      let timeScale = 1;
+      if (selectedWritingId) {
+        timeScale = 0; // 글 읽기에 집중할 수 있도록 궤도 일시 정지
+      } else if (hoveredWritingId) {
+        timeScale = 0.2; // 마우스를 올리면 클릭하기 쉽도록 천천히 감속
+      }
+
+      if (timeScale > 0) {
+        orbitEntities.forEach((ent) => {
+          ent.angle = (ent.angle + ent.speed * dt * timeScale) % (Math.PI * 2);
+        });
+        updatePlanetPositions();
+      }
+
+      requestAnimationFrame(animateOrbits);
+    }
+
+    // 특정 글 선택 및 카드 열기
+    function selectWriting(id) {
+      const target = orbitEntities.find((e) => e.id === id);
+      if (!target) return;
+
+      selectedWritingId = id;
+
+      // 활성 상태 클래스 갱신
+      orbitEntities.forEach((ent) => {
+        const isSelected = ent.id === id;
+        ent.el.classList.toggle('active', isSelected);
+        ent.bgEl.setAttribute('r', isSelected ? 14 : 11.5);
+      });
+
+      // 카드 내용 채우기
+      postMetaEl.textContent = target.writing.meta || '우연의 기록';
+      postTitleEl.textContent = target.writing.title;
+      postBodyEl.textContent = target.writing.body;
+      postBodyEl.scrollTop = 0;
+
+      // 레이아웃 전환 (궤도가 살짝 왼쪽으로 밀리며 우측에 말풍선 카드 등장)
+      stageWrapper.classList.add('has-active-post');
+      readerCard.classList.add('open');
+
+      requestAnimationFrame(() => {
+        alignPointerToSelectedPlanet();
+      });
+    }
+
+    // 카드 닫기 및 공전 재개
+    function closeReaderCard() {
+      selectedWritingId = null;
+      orbitEntities.forEach((ent) => {
+        ent.el.classList.remove('active');
+        ent.bgEl.setAttribute('r', 11.5);
+      });
+      stageWrapper.classList.remove('has-active-post');
+      readerCard.classList.remove('open');
+    }
+
+    closeCardBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      closeReaderCard();
+    });
+
+    // 배경 여백 클릭 시 카드 닫기
+    document.getElementById('mainStage').addEventListener('click', (e) => {
+      if (e.target.id === 'mainStage' || e.target.id === 'stageWrapper' || e.target.id === 'orbitSvg') {
+        if (selectedWritingId) closeReaderCard();
+      }
+    });
+
+    // ESC 키로 카드/모달 닫기
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        if (manageModal.classList.contains('show')) {
+          manageModal.classList.remove('show');
+        } else if (selectedWritingId) {
+          closeReaderCard();
+        }
+      }
+    });
+
+    window.addEventListener('resize', () => {
+      if (selectedWritingId && window.innerWidth > 960) {
+        alignPointerToSelectedPlanet();
+      }
+    });
+
+    /**
+     * ============================================================================
+     * [글 추가 / 수정 / 삭제 관리 모달 로직]
+     * ============================================================================
+     */
+    const manageModal = document.getElementById('manageModal');
+    const openManageBtn = document.getElementById('openManageBtn');
+    const closeManageBtn = document.getElementById('closeManageBtn');
+    const writingForm = document.getElementById('writingForm');
+    const editIdInput = document.getElementById('editId');
+    const inputTitle = document.getElementById('inputTitle');
+    const inputDate = document.getElementById('inputDate');
+    const inputBody = document.getElementById('inputBody');
+    const submitWritingBtn = document.getElementById('submitWritingBtn');
+    const cancelEditBtn = document.getElementById('cancelEditBtn');
+    const resetDefaultBtn = document.getElementById('resetDefaultBtn');
+    const savedItemsContainer = document.getElementById('savedItemsContainer');
+    const countBadge = document.getElementById('countBadge');
+
+    function renderSavedList() {
+      countBadge.textContent = writings.length;
+      savedItemsContainer.innerHTML = '';
+
+      writings.forEach((item, index) => {
+        const row = document.createElement('div');
+        row.className = 'saved-item';
+
+        const info = document.createElement('div');
+        info.className = 'saved-item-info';
+        info.textContent = `${index + 1}. ${item.title}`;
+
+        const actions = document.createElement('div');
+        actions.className = 'saved-item-actions';
+
+        const editBtn = document.createElement('button');
+        editBtn.type = 'button';
+        editBtn.className = 'mini-btn';
+        editBtn.textContent = '수정';
+        editBtn.onclick = () => startEditWriting(item);
+
+        const delBtn = document.createElement('button');
+        delBtn.type = 'button';
+        delBtn.className = 'mini-btn del';
+        delBtn.textContent = '삭제';
+        delBtn.onclick = () => deleteWriting(item.id);
+
+        actions.appendChild(editBtn);
+        actions.appendChild(delBtn);
+        row.appendChild(info);
+        row.appendChild(actions);
+        savedItemsContainer.appendChild(row);
+      });
+    }
+
+    function startEditWriting(item) {
+      editIdInput.value = item.id;
+      inputTitle.value = item.title;
+      inputDate.value = item.meta || '';
+      inputBody.value = item.body;
+      submitWritingBtn.textContent = '수정 내용 저장';
+      cancelEditBtn.style.display = 'inline-block';
+      inputTitle.focus();
+    }
+
+    function resetForm() {
+      editIdInput.value = '';
+      writingForm.reset();
+      submitWritingBtn.textContent = '고리에 별 추가하기';
+      cancelEditBtn.style.display = 'none';
+    }
+
+    function deleteWriting(id) {
+      writings = writings.filter((w) => w.id !== id);
+      saveWritings(writings);
+      if (selectedWritingId === id) {
+        closeReaderCard();
+      }
+      buildOrbitScene();
+      renderSavedList();
+    }
+
+    writingForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const title = inputTitle.value.trim();
+      const meta = inputDate.value.trim() || '우연의 기록';
+      const body = inputBody.value.trim();
+      if (!title || !body) return;
+
+      const editingId = editIdInput.value;
+      if (editingId) {
+        writings = writings.map((w) =>
+          w.id === editingId ? { ...w, title, meta, body } : w
+        );
+      } else {
+        const newItem = {
+          id: 'w-' + Date.now(),
+          title,
+          meta,
+          body
+        };
+        writings.push(newItem);
+      }
+
+      saveWritings(writings);
+      buildOrbitScene();
+      renderSavedList();
+      resetForm();
+    });
+
+    cancelEditBtn.addEventListener('click', resetForm);
+
+    resetDefaultBtn.addEventListener('click', () => {
+      localStorage.removeItem(STORAGE_KEY);
+      writings = [...defaultWritings];
+      closeReaderCard();
+      buildOrbitScene();
+      renderSavedList();
+      resetForm();
+    });
+
+    openManageBtn.addEventListener('click', () => {
+      renderSavedList();
+      manageModal.classList.add('show');
+    });
+
+    closeManageBtn.addEventListener('click', () => {
+      manageModal.classList.remove('show');
+      resetForm();
+    });
+
+    manageModal.addEventListener('click', (e) => {
+      if (e.target === manageModal) {
+        manageModal.classList.remove('show');
+        resetForm();
+      }
+    });
+
+    // 초기화 및 공전 시작
+    buildOrbitScene();
+    requestAnimationFrame(animateOrbits);
+  </script>
+</body>
+</html>
